@@ -1,0 +1,3 @@
+.venv/
+*.skill
+.DS_Store
