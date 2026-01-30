@@ -31,7 +31,7 @@ description: Create semantic git commits using Conventional Commits. Analyzes di
 | `chore`    | Other maintenance                       | `chore: update gitignore`                |
 | `revert`   | Reverting previous commit               | `revert: undo breaking API change`       |
 
-**Breaking Changes:** Add `!` after type/scope (e.g., `feat!:`) or use `BREAKING CHANGE:` footer. See [references/SPECIFICATION.md](references/SPECIFICATION.md) for full details.
+**Breaking Changes:** Add an exclamation mark after type/scope (e.g., `feat!:`) or use a `BREAKING CHANGE:` footer. See [references/SPECIFICATION.md](references/SPECIFICATION.md) for full details.
 
 ## Agent Workflow
 
