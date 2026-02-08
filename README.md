@@ -1,6 +1,8 @@
 # skills
 
-Reusable capabilities for AI agents. Install with:
+Reusable capabilities for AI agents.
+
+Install all skills:
 
 ```
 npx skills add https://github.com/tho/skills
