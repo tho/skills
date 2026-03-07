@@ -151,7 +151,36 @@ func TestNew_customErrors(t *testing.T) {
 }
 ```
 
-### 4. Environment Setup with `setupEnv`
+### 4. Error Checking with `assert.ErrorAssertionFunc` (testify)
+
+When using testify, prefer [`assert.ErrorAssertionFunc`](https://pkg.go.dev/github.com/stretchr/testify/assert#ErrorAssertionFunc) over `func(error) bool` for the error assertion field. Its signature matches testify's own assertion functions, so `assert.NoError` and `assert.Error` drop in as values — no wrapper needed. Custom checks get full testify reporting via `assert.TestingT`.
+
+```go
+func TestParse(t *testing.T) {
+    tests := []struct {
+        name    string
+        input   string
+        wantErr assert.ErrorAssertionFunc
+    }{
+        {"valid input", "foo", assert.NoError},
+        {"empty input", "", assert.Error},
+        {"specific error", "???", func(t assert.TestingT, err error, args ...any) bool {
+            return assert.ErrorIs(t, err, ErrInvalidInput, args...)
+        }},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            _, err := Parse(tt.input)
+            tt.wantErr(t, err)
+        })
+    }
+}
+```
+
+This is more declarative than `wantErr bool` (which can't identify which error) and cleaner than `func(error) bool` (which lacks testify's reporting).
+
+### 5. Environment Setup with `setupEnv`
 
 ```go
 func TestNew_envVarOverrides(t *testing.T) {
@@ -279,15 +308,21 @@ When writing table-driven tests:
 
 ## Best Practices
 
-### Detailed Error Messages
+### Fatalf vs Errorf
 
-Include both actual and expected values in error messages for clear failure diagnosis:
+Use `t.Fatalf` to stop a subtest immediately on a precondition failure (e.g., unexpected error). Use `t.Errorf` when the test can continue — this reveals whether failures are systematic or isolated to specific cases.
 
 ```go
-t.Errorf("got %q, want %q", actual, expected)
+got, err := ParseConfig(tt.input)
+if (err != nil) != tt.wantErr {
+    t.Fatalf("ParseConfig() error = %v, wantErr %v", err, tt.wantErr)
+}
+if !tt.wantErr && got.Port != tt.want.Port {
+    t.Errorf("ParseConfig().Port = %d, want %d", got.Port, tt.want.Port)
+}
 ```
 
-**Note:** `t.Errorf` is not an assertion - the test continues after logging. This helps identify whether failures are systematic or isolated to specific cases.
+Always include both actual and expected values in error messages: `t.Errorf("got %q, want %q", got, tt.want)`.
 
 ### Maps for Test Cases
 
@@ -334,6 +369,12 @@ func TestFunction(t *testing.T) {
     }
 }
 ```
+
+### Testify
+
+Consider `github.com/stretchr/testify` (`assert`/`require`) when it would simplify assertions — particularly for deep equality checks, nil checks, and producing readable diffs on failure. Avoid it for trivial comparisons where a one-line `if` + `t.Errorf` is just as clear. If the project already uses testify, prefer it for consistency.
+
+When using testify, prefer `assert.ErrorAssertionFunc` for the error assertion field in table tests — see pattern 4 above.
 
 ## References
 

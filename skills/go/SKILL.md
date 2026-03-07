@@ -1,11 +1,9 @@
 ---
-globs: **/*.go
-alwaysApply: false
+name: go
+description: Go code quality guidelines and conventions. Use when writing, reviewing, or modifying Go code (.go files), setting up Go projects, or when the user asks about Go idioms, patterns, error handling, concurrency, testing, linting, or project structure.
 ---
 
 # Agent Guidelines for Go Code Quality
-
-This document provides guidelines for maintaining high-quality Go code. These rules MUST be followed by all AI coding agents and contributors.
 
 Clear, boring code beats clever code. This is Go's core value and your core directive.
 
@@ -140,10 +138,11 @@ func ParseConfig(path string) (*Config, error) {
 
 ## Testing
 
-* **MUST** use red/green TDD: write tests first, confirm they fail (red), then implement until they pass (green). This prevents writing code that is untested, unnecessary, or silently broken. It also ensures tests actually exercise the new code — a test that passes before implementation proves nothing.
+**MUST** use table-driven tests for functions with multiple input/output cases. For table-driven test patterns and conventions, use the `go-table-driven-tests` skill.
+
+* **MUST** use red/green TDD: write tests first, confirm they fail (red), then implement until they pass (green).
 * **MUST** write tests for all new exported functions and methods.
-* **MUST** use the standard `testing` package as the foundation. See testify guidance below for when to layer on `assert`/`require`.
-* **MUST** use table-driven tests for functions with multiple input/output cases.
+* **MUST** use the standard `testing` package as the foundation.
 * **MUST** run tests with `-race` in CI (`go test -race ./...`). Data races are bugs, not warnings.
 * Use `t.Helper()` in test helper functions for proper line reporting.
 * Use `t.Parallel()` where tests are independent.
@@ -155,43 +154,7 @@ func ParseConfig(path string) (*Config, error) {
 * **NEVER** delete test files or test fixtures created during testing.
 * Follow the Arrange-Act-Assert pattern.
 * Do not commit commented-out tests.
-
-### Table-Driven Test Conventions
-
-* Name the struct field `name` and make it the first field. Use it as the `t.Run` subtest name.
-* Prefix expected output fields with `want` (`want`, `wantErr`, `wantResult`). Name input fields after the parameter or use `input`/`args`.
-* Use `t.Fatalf` to stop a subtest immediately on a precondition failure (e.g., unexpected error). Use `t.Errorf` when the test can continue — this reveals whether failures are systematic or isolated to specific cases.
-* Always include both actual and expected values in error messages: `t.Errorf("got %q, want %q", got, tt.want)`.
-* When checking errors in table tests, use `errors.Is(err, tt.wantErr)` rather than string comparison.
-* Consider using a `map[string]struct{...}` instead of a slice for test cases. The non-deterministic iteration order surfaces hidden dependencies between cases. The map key serves as the subtest name, eliminating the `name` field.
-* Consider `github.com/stretchr/testify` (`assert`/`require`) when it would simplify assertions — particularly for deep equality checks, nil checks, and producing readable diffs on failure. Avoid it for trivial comparisons where a one-line `if` + `t.Errorf` is just as clear. If the project already uses testify, prefer it for consistency.
-
-Example:
-
-```go
-func TestParseConfig(t *testing.T) {
-    tests := []struct {
-        name    string
-        input   string
-        want    *Config
-        wantErr bool
-    }{
-        {name: "valid config", input: "testdata/valid.toml", want: &Config{Port: 8080}},
-        {name: "missing file", input: "testdata/nope.toml", wantErr: true},
-    }
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            got, err := ParseConfig(tt.input)
-            if (err != nil) != tt.wantErr {
-                t.Fatalf("ParseConfig() error = %v, wantErr %v", err, tt.wantErr)
-            }
-            if !tt.wantErr && got.Port != tt.want.Port {
-                t.Errorf("ParseConfig().Port = %d, want %d", got.Port, tt.want.Port)
-            }
-        })
-    }
-}
-```
+* Consider `github.com/stretchr/testify` (`assert`/`require`) when it would simplify assertions — particularly for deep equality checks, nil checks, and producing readable diffs on failure. If the project already uses testify, prefer it for consistency.
 
 ## Benchmarking and Profiling
 
@@ -231,10 +194,10 @@ func TestParseConfig(t *testing.T) {
 * **MUST** run `go vet ./...` — it catches real bugs.
 * Run `go fix ./...` periodically to adopt modern idioms recommended by the Go team's modernize analyzers.
 * Enable `gofumpt` for stricter formatting if the project uses it.
-* When integrating `golangci-lint` into an existing codebase, it is not practical to fix every pre-existing issue up front. Instead, enforce linting only on new or changed code:
-  * **CI (pull requests):** use `--new-from-merge-base=main` (or your trunk branch). This lints only lines that diverged from the merge-base, which is the safest option for PR pipelines.
+* When integrating `golangci-lint` into an existing codebase, enforce linting only on new or changed code:
+  * **CI (pull requests):** use `--new-from-merge-base=main`. This lints only lines that diverged from the merge-base.
   * **CI (push to main):** use `--new-from-rev=HEAD~1` to lint only the latest commit.
-  * **Local development:** use `--new` (`-n`) to lint unstaged and untracked changes. Be aware that if other tools generate files in the working tree, `--new` will only report issues in those generated files — prefer `--new-from-merge-base=main` if that's a concern.
+  * **Local development:** use `--new` (`-n`) to lint unstaged and untracked changes.
   * To flag issues anywhere in touched files (not just changed lines), add `--whole-files` alongside `--new-from-rev` or `--new-from-merge-base`.
 * CI should run: `go build ./...`, `go test -race ./...`, `go vet ./...`, `golangci-lint run --new-from-merge-base=main`, `govulncheck ./...`.
 

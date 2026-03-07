@@ -1,11 +1,9 @@
 ---
-globs: **/*.sh
-alwaysApply: false
+name: bash
+description: Shell script quality guidelines and conventions. Use when writing, reviewing, or modifying shell scripts (.sh files, bash scripts, POSIX sh scripts), or when the user asks about shell scripting, bash idioms, script safety, quoting, error handling, or portability.
 ---
 
 # Agent Guidelines for Shell Script Quality
-
-These rules MUST be followed by all AI coding agents and contributors.
 
 **Clear, boring scripts beat clever ones. Prefer explicit over implicit, simple over terse.**
 
@@ -324,26 +322,24 @@ CI should run at minimum:
 
 ## Pitfall Quick Reference
 
-Sourced from the wooledge BashPitfalls catalogue.
-
-|Pattern                                            |Problem                                        |Fix                                                      |
-|---------------------------------------------------|-----------------------------------------------|---------------------------------------------------------|
-|`for f in $(ls *.mp3)`                             |Word-splits, globs, mangles names              |`for f in ./*.mp3`                                       |
-|`cp $file $target`                                 |Word-splits and glob-expands                   |`cp -- "$file" "$target"`                                |
-|`[ $foo = bar ]`                                   |Fails on empty/spaces                          |`[ "$foo" = bar ]` or `[[ $foo = bar ]]`                 |
-|`printf "$foo"`                                    |Format string injection                        |`printf '%s\n' "$foo"`                                   |
-|`[[ $foo > 7 ]]`                                   |String comparison, not numeric                 |`(( foo > 7 ))`                                          |
-|`cmd1 && cmd2 || cmd3`                             |`cmd3` runs if `cmd2` fails                    |`if/then/else/fi`                                        |
-|`local var=$(cmd)`                                 |`local` masks exit status                      |Declare then assign                                      |
-|`export foo=~/bar`                                 |Tilde may not expand                           |`export foo="$HOME/bar"`                                 |
-|`function foo()`                                   |Not portable                                   |`foo()`                                                  |
-|`cd /foo; bar`                                     |`bar` runs in wrong dir if `cd` fails          |`cd /foo || exit 1`                                      |
-|`cmd 2>&1 >file`                                   |Wrong order; stderr goes to tty                |`cmd >file 2>&1`                                         |
-|`for i in {1..$n}`                                 |Brace expansion before variable expansion      |`for ((i=1; i<=n; i++))`                                 |
-|`hosts=( $(aws ...) )`                             |Word-splits and globs output                   |`readarray -t hosts < <(aws ...)`                        |
-|`find . -exec sh -c 'echo {}'`                     |Code injection via filename                    |`find . -exec sh -c 'echo "$1"' _ {} \;`                 |
-|`sudo cmd > /file`                                 |Redirect runs as original user                 |`sudo sh -c 'cmd > /file'`                               |
-|`myprogram 2>&-`                                   |Closing stderr crashes programs                |`myprogram 2>/dev/null`                                  |
+| Pattern | Problem | Fix |
+|---|---|---|
+| `for f in $(ls *.mp3)` | Word-splits, globs, mangles names | `for f in ./*.mp3` |
+| `cp $file $target` | Word-splits and glob-expands | `cp -- "$file" "$target"` |
+| `[ $foo = bar ]` | Fails on empty/spaces | `[ "$foo" = bar ]` or `[[ $foo = bar ]]` |
+| `printf "$foo"` | Format string injection | `printf '%s\n' "$foo"` |
+| `[[ $foo > 7 ]]` | String comparison, not numeric | `(( foo > 7 ))` |
+| `cmd1 && cmd2 \|\| cmd3` | `cmd3` runs if `cmd2` fails | `if/then/else/fi` |
+| `local var=$(cmd)` | `local` masks exit status | Declare then assign |
+| `export foo=~/bar` | Tilde may not expand | `export foo="$HOME/bar"` |
+| `function foo()` | Not portable | `foo()` |
+| `cd /foo; bar` | `bar` runs in wrong dir if `cd` fails | `cd /foo \|\| exit 1` |
+| `cmd 2>&1 >file` | Wrong order; stderr goes to tty | `cmd >file 2>&1` |
+| `for i in {1..$n}` | Brace expansion before variable expansion | `for ((i=1; i<=n; i++))` |
+| `hosts=( $(aws ...) )` | Word-splits and globs output | `readarray -t hosts < <(aws ...)` |
+| `find . -exec sh -c 'echo {}'` | Code injection via filename | `find . -exec sh -c 'echo "$1"' _ {} \;` |
+| `sudo cmd > /file` | Redirect runs as original user | `sudo sh -c 'cmd > /file'` |
+| `myprogram 2>&-` | Closing stderr crashes programs | `myprogram 2>/dev/null` |
 
 ## Before Committing
 
