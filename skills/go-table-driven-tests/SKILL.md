@@ -9,6 +9,7 @@ Use this skill when writing or modifying Go table-driven tests. It ensures tests
 
 ## Core Principles
 
+- **Red/green TDD** - Write tests first, confirm they fail (red), then implement until they pass (green)
 - **One test function, many cases** - Define test cases in a slice and iterate with `t.Run()`
 - **Explicit naming** - Each case has a `name` field that becomes the subtest name
 - **Structured inputs** - Use struct fields for inputs, expected outputs, and configuration
