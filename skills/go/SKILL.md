@@ -20,8 +20,6 @@ All code you write MUST be fully optimized.
 * no extra code beyond what is absolutely necessary to solve the problem (i.e. no technical debt)
   * If a well-maintained stdlib package or small dependency solves the problem well, use it instead of reimplementing. Prefer the standard library over third-party packages when the stdlib solution is reasonable.
 
-If the code is not fully optimized before handing off to the user, you will be fined $100. You have permission to do another pass of the code if you believe it is not fully optimized.
-
 ## Project Setup
 
 * Use Go modules (`go.mod` / `go.sum`). Never use `GOPATH`-mode.

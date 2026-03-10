@@ -204,7 +204,8 @@ die() { echo "error: $*" >&2; exit 1; }
 - Use `trap` for cleanup:
 
 ```sh
-readonly TMP_DIR="$(mktemp -d)"
+TMP_DIR="$(mktemp -d)" || die "failed to create temp dir"
+readonly TMP_DIR
 trap 'rm -rf "$TMP_DIR"' EXIT
 ```
 
