@@ -1,11 +1,9 @@
 ---
 name: go-table-driven-tests
-description: Write Go table-driven tests following established patterns. Use when writing tests, creating test functions, adding test cases, or when the user mentions "test", "table-driven", "Go tests", or testing in Go codebases.
+description: Use when writing tests, creating test functions, adding test cases, or when the user mentions "test", "table-driven", "Go tests", or testing in Go codebases.
 ---
 
 # Go Table-Driven Tests
-
-Use this skill when writing or modifying Go table-driven tests. It ensures tests follow established patterns.
 
 ## Core Principles
 
@@ -124,11 +122,11 @@ func TestNew_customErrors(t *testing.T) {
         errCheck func(error) bool
     }{
         {
-            name: "no bucket name returns ErrNoBucketName",
+            name: "missing config returns ErrMissingConfig",
             setupEnv: func() func() { return func() {} },
-            wantErr:  ErrNoBucketName,
+            wantErr:  ErrMissingConfig,
             errCheck: func(err error) bool {
-                return errors.Is(err, ErrNoBucketName)
+                return errors.Is(err, ErrMissingConfig)
             },
         },
     }
@@ -141,11 +139,14 @@ func TestNew_customErrors(t *testing.T) {
             _, err := New(context.Background())
 
             if tt.wantErr != nil {
-                if tt.errCheck != nil {
-                    if !tt.errCheck(err) {
-                        t.Errorf("error = %v, want %v", err, tt.wantErr)
-                    }
+                if err == nil {
+                    t.Fatalf("expected error %v, got nil", tt.wantErr)
                 }
+                if tt.errCheck != nil && !tt.errCheck(err) {
+                    t.Errorf("error = %v, want %v", err, tt.wantErr)
+                }
+            } else if err != nil {
+                t.Errorf("unexpected error: %v", err)
             }
         })
     }
@@ -186,27 +187,27 @@ This is more declarative than `wantErr bool` (which can't identify which error) 
 ```go
 func TestNew_envVarOverrides(t *testing.T) {
     tests := []struct {
-        name        string
-        setupEnv    func() func()
-        options     []Option
-        wantErr     error
+        name     string
+        setupEnv func() func()
+        options  []Option
+        wantErr  error
     }{
         {
-            name: "bucket from env var",
+            name: "endpoint from env var",
             setupEnv: func() func() {
-                os.Setenv("TIGRIS_STORAGE_BUCKET", "test-bucket")
-                return func() { os.Unsetenv("TIGRIS_STORAGE_BUCKET") }
+                os.Setenv("SERVICE_ENDPOINT", "http://localhost:8080")
+                return func() { os.Unsetenv("SERVICE_ENDPOINT") }
             },
             wantErr: nil,
         },
         {
-            name: "bucket from option overrides env var",
+            name: "option overrides env var",
             setupEnv: func() func() {
-                os.Setenv("TIGRIS_STORAGE_BUCKET", "env-bucket")
-                return func() { os.Unsetenv("TIGRIS_STORAGE_BUCKET") }
+                os.Setenv("SERVICE_ENDPOINT", "http://localhost:8080")
+                return func() { os.Unsetenv("SERVICE_ENDPOINT") }
             },
             options: []Option{
-                func(o *Options) { o.BucketName = "option-bucket" },
+                func(o *Options) { o.Endpoint = "http://custom:9090" },
             },
             wantErr: nil,
         },
@@ -219,7 +220,7 @@ func TestNew_envVarOverrides(t *testing.T) {
 
             _, err := New(context.Background(), tt.options...)
 
-            if tt.wantErr != nil && !errors.Is(err, tt.wantErr) {
+            if !errors.Is(err, tt.wantErr) {
                 t.Errorf("error = %v, want %v", err, tt.wantErr)
             }
         })
@@ -232,27 +233,24 @@ func TestNew_envVarOverrides(t *testing.T) {
 For tests requiring real credentials, use a skip helper:
 
 ```go
-// skipIfNoCreds skips the test if Tigris credentials are not set.
-// Use this for integration tests that require real Tigris operations.
+// skipIfNoCreds skips the test if service credentials are not set.
+// Use this for integration tests that require a live service connection.
 func skipIfNoCreds(t *testing.T) {
     t.Helper()
-    if os.Getenv("TIGRIS_STORAGE_ACCESS_KEY_ID") == "" ||
-        os.Getenv("TIGRIS_STORAGE_SECRET_ACCESS_KEY") == "" {
-        t.Skip("skipping: TIGRIS_STORAGE_ACCESS_KEY_ID and TIGRIS_STORAGE_SECRET_ACCESS_KEY not set")
+    if os.Getenv("SERVICE_API_KEY") == "" {
+        t.Skip("skipping: SERVICE_API_KEY not set")
     }
 }
 
-func TestCreateBucket(t *testing.T) {
+func TestCreate(t *testing.T) {
     tests := []struct {
         name    string
-        bucket  string
-        options []BucketOption
+        input   Record
         wantErr error
     }{
         {
-            name:    "create snapshot-enabled bucket",
-            bucket:  "test-bucket",
-            options: []BucketOption{WithEnableSnapshot()},
+            name:  "create valid record",
+            input: Record{Name: "example"},
         },
     }
 
@@ -271,23 +269,23 @@ func TestCreateBucket(t *testing.T) {
 Use `t.Helper()` in helper functions for proper line number reporting:
 
 ```go
-func setupTestBucket(t *testing.T, ctx context.Context, client *Client) string {
+func setupTestRecord(t *testing.T, ctx context.Context, client *Client) string {
     t.Helper()
     skipIfNoCreds(t)
 
-    bucket := "test-bucket-" + randomSuffix()
-    err := client.CreateBucket(ctx, bucket)
+    id := "test-" + randomID()
+    err := client.Create(ctx, Record{ID: id})
     if err != nil {
-        t.Fatalf("failed to create test bucket: %v", err)
+        t.Fatalf("failed to create test record: %v", err)
     }
-    return bucket
+    return id
 }
 
-func cleanupTestBucket(t *testing.T, ctx context.Context, client *Client, bucket string) {
+func cleanupTestRecord(t *testing.T, ctx context.Context, client *Client, id string) {
     t.Helper()
-    err := client.DeleteBucket(ctx, bucket, WithForceDelete())
+    err := client.Delete(ctx, id)
     if err != nil {
-        t.Logf("warning: failed to cleanup test bucket %s: %v", bucket, err)
+        t.Logf("warning: failed to cleanup test record %s: %v", id, err)
     }
 }
 ```
@@ -315,10 +313,10 @@ Use `t.Fatalf` to stop a subtest immediately on a precondition failure (e.g., un
 
 ```go
 got, err := ParseConfig(tt.input)
-if (err != nil) != tt.wantErr {
-    t.Fatalf("ParseConfig() error = %v, wantErr %v", err, tt.wantErr)
+if !errors.Is(err, tt.wantErr) {
+    t.Fatalf("ParseConfig() error = %v, want %v", err, tt.wantErr)
 }
-if !tt.wantErr && got.Port != tt.want.Port {
+if tt.wantErr == nil && got.Port != tt.want.Port {
     t.Errorf("ParseConfig().Port = %d, want %d", got.Port, tt.want.Port)
 }
 ```

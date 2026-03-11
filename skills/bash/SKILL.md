@@ -1,9 +1,9 @@
 ---
 name: bash
-description: Shell script quality guidelines and conventions. Use when writing, reviewing, or modifying shell scripts (.sh files, bash scripts, POSIX sh scripts), or when the user asks about shell scripting, bash idioms, script safety, quoting, error handling, or portability.
+description: Use when writing, reviewing, or modifying shell scripts (.sh files, bash scripts, POSIX sh scripts), or when the user asks about shell scripting, bash idioms, script safety, quoting, error handling, or portability.
 ---
 
-# Agent Guidelines for Shell Script Quality
+# Shell Script Quality
 
 **Clear, boring scripts beat clever ones. Prefer explicit over implicit, simple over terse.**
 

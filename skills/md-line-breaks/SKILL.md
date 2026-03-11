@@ -1,6 +1,6 @@
 ---
 name: md-line-breaks
-description: Append `<br>` to consecutive markdown lines that should render separately, e.g., `**Author:** Name` / `**Date:** Value` metadata blocks that would otherwise collapse into one paragraph.
+description: Use when consecutive markdown lines collapse into a single paragraph and need to render separately, e.g., metadata blocks like `**Author:** Name` / `**Date:** Value`.
 ---
 
 # Markdown Line Breaks

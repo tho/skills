@@ -1,17 +1,15 @@
 ---
 name: go
-description: Go code quality guidelines and conventions. Use when writing, reviewing, or modifying Go code (.go files), setting up Go projects, or when the user asks about Go idioms, patterns, error handling, concurrency, testing, linting, or project structure.
+description: Use when writing, reviewing, or modifying Go code (.go files), setting up Go projects, or when the user asks about Go idioms, patterns, error handling, concurrency, testing, linting, or project structure.
 ---
 
-# Agent Guidelines for Go Code Quality
+# Go Code Quality
 
 Clear, boring code beats clever code. This is Go's core value and your core directive.
 
 ## Core Principles
 
-All code you write MUST be fully optimized.
-
-"Fully optimized" includes:
+All code you write MUST meet the following quality criteria:
 
 * maximizing algorithmic big-O efficiency for memory and runtime
 * minimizing heap allocations; prefer stack allocation and value types where practical

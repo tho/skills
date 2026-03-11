@@ -1,6 +1,6 @@
 ---
 name: git-commit
-description: Create semantic git commits using Conventional Commits. Analyzes diffs to auto-detect commit type and scope, generates standardized messages, and intelligently stages files. Use when user asks to commit changes or mentions "/commit".
+description: Use when user asks to commit changes, create a commit, or mentions "/commit".
 ---
 
 # Git Commit with Conventional Commits
@@ -107,6 +107,6 @@ EOF
 - **NEVER** commit sensitive files (.env, credentials.json, private keys, API keys)
 - **If commit fails due to hooks** - Fix the issue and create a NEW commit (don't use `--amend` unless explicitly requested)
 
-## Additional Resources
+## References
 
 - [Full Conventional Commits Specification](references/SPECIFICATION.md) - Complete RFC-style specification with breaking change examples
