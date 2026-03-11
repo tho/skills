@@ -41,18 +41,11 @@ Every script MUST start with:
 set -euo pipefail
 ```
 
-If the script does not rely on globbing (most don't), also add `set -f`:
-
-```sh
-set -eufo pipefail
-```
-
 - `set -e`: exit immediately on error
 - `set -u`: treat unset variables as errors
-- `set -f`: disable filename globbing — prevents accidental glob expansion of unquoted variables
 - `set -o pipefail`: propagate pipeline failures
 
-If a section needs globbing, disable locally with `set +f` and re-enable with `set -f`.
+If the script does not rely on globbing, also add `set -f` to prevent accidental glob expansion of unquoted variables; disable locally with `set +f` when needed.
 
 **`set -e` caveats:**
 
@@ -79,6 +72,15 @@ fi
 some_command || true  # intentional — documented reason here
 ```
 
+## Security
+
+- **NEVER** store secrets in scripts. Read from environment or a secrets manager.
+- **NEVER** print or log variables that may contain secrets.
+- **NEVER** use `eval` on user input or construct commands via string concatenation.
+- Use `--` to signal end of options: `rm -- "$file"`.
+- **MUST** validate file paths before `rm -rf`.
+- Set `chmod 600` on files containing sensitive data.
+
 ## Code Style and Formatting
 
 - **MUST** use 2-space indentation (or tabs if the project already uses them — be consistent).
@@ -86,13 +88,12 @@ some_command || true  # intentional — documented reason here
 - **MUST** quote all variable expansions: `"$var"`, `"${var}"`, `"$@"`.
 - **NEVER** use `$*` — use `"$@"` to preserve argument boundaries.
 - Use `${variable}` braces when concatenating: `"${prefix}_suffix"`.
-- Keep line length under 100 characters.
+- Use `UPPER_CASE` for environment variables and constants; `snake_case` for locals.
+- **MUST** use `readonly` for constants: `readonly MAX_RETRIES=3`.
 - Use `local` for variables in functions.
 - **MUST** avoid redundant comments that restate what the code obviously does.
 - **MUST** avoid comments that leak the original user prompt or meta-context.
 - Prefer early returns/exits to reduce nesting.
-- Use `UPPER_CASE` for environment variables and constants; `snake_case` for locals.
-- **MUST** use `readonly` for constants: `readonly MAX_RETRIES=3`.
 
 ## Quoting
 
@@ -102,6 +103,14 @@ Incorrect quoting is the root cause of the majority of shell bugs. Unquoted vari
 - Single quotes protect everything literally — no expansion occurs inside `'...'`.
 - **NEVER** use `"~"` or `"~/path"` — tilde does not expand inside double quotes. Use `"$HOME"`.
 - `export foo=~/bar` does not reliably expand the tilde. Use `export foo="$HOME/bar"`.
+
+## Variables and Expansion
+
+- Use `${var:-default}` for defaults, `${var:?error message}` to abort on unset.
+- Prefer parameter expansion over external tools for simple string operations: `${str#prefix}`, `${str%suffix}`, `${str/old/new}`, `${str,,}` (bash 4+).
+- **NEVER** put commands in variables. Variables hold data; functions hold code. Use a function or an array.
+- Brace expansion (`{1..10}`) happens before variable expansion — `{1..$n}` does not work. Use `for ((i=1; i<=n; i++))`.
+- Command substitution strips trailing newlines. Sentinel: `out=$(cmd; printf x); out=${out%x}`.
 
 ## Conditionals
 
@@ -116,13 +125,46 @@ Incorrect quoting is the root cause of the majority of shell bugs. Unquoted vari
 - `cmd1 && cmd2 || cmd3` is **not** if/else. If `cmd2` fails, `cmd3` also runs. Use `if/then/else/fi`.
 - Test commands directly: `if cmd; then` — not `cmd; if [ $? -eq 0 ]; then`.
 
-## Variables and Expansion
+## Functions
 
-- Use `${var:-default}` for defaults, `${var:?error message}` to abort on unset.
-- Prefer parameter expansion over external tools for simple string operations: `${str#prefix}`, `${str%suffix}`, `${str/old/new}`, `${str,,}` (bash 4+).
-- **NEVER** put commands in variables. Variables hold data; functions hold code. Use a function or an array.
-- Brace expansion (`{1..10}`) happens before variable expansion — `{1..$n}` does not work. Use `for ((i=1; i<=n; i++))`.
-- Command substitution strips trailing newlines. Sentinel: `out=$(cmd; printf x); out=${out%x}`.
+- Declare with `foo()` syntax. In bash, `function foo` is also acceptable but adds no value. Avoid `function foo()` — it combines both and is not POSIX.
+- **MUST** use `local` for all variables.
+- **MUST** document purpose, arguments, and return value/exit code above each function.
+- Functions return exit codes (0–255). Return data via stdout.
+- **NEVER** use `exit` in a function — use `return`.
+- `local var=$(cmd)` masks `cmd`'s exit status. Declare and assign separately:
+
+```sh
+local result
+result=$(cmd) || return 1
+```
+
+The same applies to `export foo=$(cmd)` and `readonly foo=$(cmd)`.
+
+## Input and Arguments
+
+- **MUST** validate required arguments early with a `usage()` function.
+- Use `getopts` for option parsing. **NEVER** use `getopt` (the external command) — platform-dependent.
+- **NEVER** pass unvalidated input to `eval`, arithmetic contexts, or `find -exec sh -c 'echo {}'`. Pass as positional arguments: `find . -exec sh -c 'echo "$1"' _ {} \;`.
+
+## Error Handling
+
+- **MUST** write error messages to stderr: `echo "error: ..." >&2`.
+- Use a `die` helper:
+
+```sh
+die() { echo "error: $*" >&2; exit 1; }
+```
+
+- Use `trap` for cleanup:
+
+```sh
+TMP_DIR="$(mktemp -d)" || die "failed to create temp dir"
+readonly TMP_DIR
+trap 'rm -rf "$TMP_DIR"' EXIT
+```
+
+- **ALWAYS** check `cd` for failure: `cd /some/dir || die "cannot cd to /some/dir"`.
 
 ## Reading Input and Iterating Files
 
@@ -176,41 +218,11 @@ grep foo file | while read -r line; do (( count++ )); done
 while IFS= read -r line; do (( count++ )); done < <(grep foo file)
 ```
 
-## Functions
+## Output
 
-- Declare with `name()` syntax. **NEVER** use `function foo()` (not POSIX). In bash, use either `function foo` or `foo()`.
-- **MUST** use `local` for all variables.
-- **MUST** document purpose, arguments, and return value/exit code above each function.
-- Functions return exit codes (0–255). Return data via stdout.
-- **NEVER** use `exit` in a function — use `return`.
-- `local var=$(cmd)` masks `cmd`'s exit status. Declare and assign separately:
-
-```sh
-local result
-result=$(cmd) || return 1
-```
-
-The same applies to `export foo=$(cmd)` and `readonly foo=$(cmd)`.
-
-## Error Handling
-
-- **MUST** write error messages to stderr: `echo "error: ..." >&2`.
-- Use a `die` helper:
-
-```sh
-die() { echo "error: $*" >&2; exit 1; }
-```
-
-- Use `trap` for cleanup:
-
-```sh
-TMP_DIR="$(mktemp -d)" || die "failed to create temp dir"
-readonly TMP_DIR
-trap 'rm -rf "$TMP_DIR"' EXIT
-```
-
-- **ALWAYS** check `cd` for failure: `cd /some/dir || die "cannot cd to /some/dir"`.
-- **NEVER** close stderr with `2>&-`. Use `2>/dev/null`.
+- In POSIX sh, use `printf` over `echo` for predictability. In bash, `echo` is fine for simple messages.
+- **NEVER** use `printf "$foo"` — format string injection. Use `printf '%s\n' "$foo"`.
+- Use heredocs (`<<EOF`) for multi-line output.
 
 ## Redirection
 
@@ -226,11 +238,7 @@ cmd >logfile 2>&1
 
 `sudo cmd > /file` runs the redirect as the current user. Use `sudo sh -c 'cmd > /file'` or `cmd | sudo tee /file >/dev/null`.
 
-## Input and Arguments
-
-- **MUST** validate required arguments early with a `usage()` function.
-- Use `getopts` for option parsing. **NEVER** use `getopt` (the external command) — platform-dependent.
-- **NEVER** pass unvalidated input to `eval`, arithmetic contexts, or `find -exec sh -c 'echo {}'`. Pass as positional arguments: `find . -exec sh -c 'echo "$1"' _ {} \;`.
+- **NEVER** close stderr with `2>&-`. Use `2>/dev/null`.
 
 ## File and Path Handling
 
@@ -248,12 +256,6 @@ fi
 - `-e` follows symlinks. A broken symlink returns false. Use `[[ -e "$f" || -L "$f" ]]`.
 - **Never export `CDPATH`** — it causes `cd` in child scripts to resolve to unexpected directories and pollutes command substitutions with printed paths.
 - An empty `IFS` (`IFS=`) and an unset `IFS` have different effects. Use `local IFS` inside functions or a subshell — do not save/restore with `OIFS="$IFS"`.
-
-## Output
-
-- In POSIX sh, use `printf` over `echo` for predictability. In bash, `echo` is fine for simple messages.
-- **NEVER** use `printf "$foo"` — format string injection. Use `printf '%s\n' "$foo"`.
-- Use heredocs (`<<EOF`) for multi-line output.
 
 ## Subshells and External Commands
 
@@ -285,17 +287,8 @@ read -r month day year <<< "$(date '+%m %d %Y')"
 
 ## Documentation
 
-- **MUST** include a header comment: purpose, usage, required environment variables, and dependencies.
-- **MUST** document all functions with purpose, arguments, and return value.
-
-## Security
-
-- **NEVER** store secrets in scripts. Read from environment or a secrets manager.
-- **NEVER** print or log variables that may contain secrets.
-- **NEVER** use `eval` on user input or construct commands via string concatenation.
-- Use `--` to signal end of options: `rm -- "$file"`.
-- **MUST** validate file paths before `rm -rf`.
-- Set `chmod 600` on files containing sensitive data.
+- Include a header comment for non-trivial scripts: purpose, usage, required environment variables, and dependencies.
+- Document functions with purpose, arguments, and return value when the signature alone is not self-explanatory.
 
 ## Testing
 
@@ -304,22 +297,12 @@ Most shell scripts are short enough that ShellCheck and manual testing suffice. 
 ## Linting and Static Analysis
 
 - **MUST** run [ShellCheck](https://www.shellcheck.net/) on all scripts: `shellcheck -S warning -x <script>`.
-- Use [shellharden](https://github.com/anordal/shellharden) to auto-fix quoting: `shellharden --replace <script>` locally, `shellharden --check <script>` in CI.
 - Use `shfmt` for formatting: `shfmt -i 2 -ci -w <script>`.
 - **NEVER** suppress ShellCheck warnings without a documented reason inline:
 
 ```sh
 # shellcheck disable=SC2086  # intentional word-splitting: $flags is a space-separated option list
 ```
-
-## CI
-
-CI should run at minimum:
-
-- `shellcheck` on all shell scripts
-- `shellharden --check` on all bash scripts
-- `shfmt -d` (diff mode)
-- `bats` test suite (if tests exist)
 
 ## Pitfall Quick Reference
 
@@ -345,12 +328,9 @@ CI should run at minimum:
 ## Before Committing
 
 - `shellcheck` is clean
-- `shellharden --check` passes
 - `shfmt -d` reports no differences
-- All bats tests pass (if tests exist)
-- No hardcoded credentials or secrets
-- Functions and script header are documented
-- No debug `echo` or `set -x` left in
-- Temporary files cleaned up via `trap`
 - All variable expansions quoted
 - All `cd` calls check for failure
+- No hardcoded credentials or secrets
+- No debug `echo` or `set -x` left in
+- Temporary files cleaned up via `trap`
