@@ -1,6 +1,6 @@
 ---
 name: go
-description: Use when writing, reviewing, or modifying Go code (.go files), setting up Go projects, or when the user asks about Go idioms, patterns, error handling, concurrency, testing, linting, or project structure.
+description: Use when writing, reviewing, or modifying Go code (.go files), setting up Go projects, or when the user asks about Go idioms, patterns, error handling, concurrency, testing, benchmarking, security, linting, or project structure.
 ---
 
 # Go Code Quality
@@ -48,7 +48,7 @@ All code you write MUST meet the following quality criteria:
 
 ## Modern Go Idioms
 
-Prefer modern language features and stdlib additions over older patterns. AI agents have a known tendency to produce outdated Go due to training data lag. The `go fix ./...` command (rewritten in Go 1.26) can automatically modernize code, but prefer writing modern code from the start.
+Prefer modern language features and stdlib additions over older patterns. AI agents have a known tendency to produce outdated Go due to training data lag. The `modernize` analyzer (in `gopls` and `golangci-lint`) and `go fix ./...` (for registered API migration fixes) can automatically modernize code, but prefer writing modern code from the start.
 
 * Use `min(a, b)` and `max(a, b)` builtins (Go 1.21+) instead of if-else blocks.
 * Use `for i := range n` (Go 1.22+) instead of `for i := 0; i < n; i++`.
@@ -56,11 +56,11 @@ Prefer modern language features and stdlib additions over older patterns. AI age
 * Use `slices` and `maps` packages (Go 1.21+) for common slice/map operations instead of hand-rolled helpers.
 * Use `cmp.Or(a, b, c)` (Go 1.22+) instead of chains of `if x == "" { x = fallback }`.
 * Use `errors.AsType[T](err)` (Go 1.26+) instead of `var target T; errors.As(err, &target)`.
-* Use `new(expr)` (Go 1.26+) to get a pointer to a value instead of `x := val; &x` helper patterns.
+* Use `new(expr)` (Go 1.26+) to initialize a pointer to a non-composite value instead of the two-line `x := val; return &x` pattern (e.g., `new(42)` for `*int`, `new(time.Now())` for `*time.Time`). For struct types, `&T{field: val}` composite literals remain idiomatic.
 * Use `slog.NewMultiHandler` (Go 1.26+) when fanning out to multiple log handlers.
 * Use `strings.Cut` instead of `strings.Index` + manual slicing.
 * Use `strings.Builder` for string concatenation in loops instead of repeated `+` or `fmt.Sprintf`.
-* Use `sync.WaitGroup.Go(fn)` instead of `wg.Add(1)` + `go func() { defer wg.Done(); ... }()`.
+* Use `sync.WaitGroup.Go(fn)` (Go 1.25+) instead of `wg.Add(1)` + `go func() { defer wg.Done(); ... }()`.
 
 When working on an existing codebase, match the Go version declared in `go.mod` — do not use features from a newer Go than what the project targets.
 
@@ -86,7 +86,7 @@ func ParseConfig(path string) (*Config, error) {
 * **MUST** check every error. **NEVER** use `_` to discard errors unless the function's docs explicitly say it cannot fail.
 * **NEVER** use `panic` for expected error conditions. `panic` is for programmer bugs and unrecoverable states only.
 * **MUST** wrap errors with context using `fmt.Errorf("doing X: %w", err)`.
-* **MUST** use `errors.Is` and `errors.As` (or `errors.AsType[T]` on Go 1.26+) for error inspection — never compare error strings.
+* **MUST** use `errors.Is` and `errors.As` (or `errors.AsType[T](err)` on Go 1.26+) for error inspection — never compare error strings.
 * Return errors; don't log-and-return (pick one). Let the caller decide what to do.
 * Use sentinel errors (`var ErrNotFound = errors.New("not found")`) for errors callers need to check.
 * **NEVER** expose internal error details to end users. Translate errors at API boundaries — log the full error server-side, return an opaque message to the client. Use a custom error type that separates internal details from public-safe messages if needed.
@@ -100,7 +100,7 @@ func ParseConfig(path string) (*Config, error) {
 * `context.Context` is always the first parameter when present. **NEVER** store `context.Context` in a struct field.
 * Prefer returning `(T, error)` over output parameters.
 * **MUST** use `defer` for resource cleanup (`file.Close()`, `mu.Unlock()`, rows, response bodies, etc.). A resource acquired in a function should have its cleanup deferred immediately after the error check.
-* **MUST** check `io.Reader`/`io.Writer` return values — partial reads/writes are valid behavior, not errors.
+* **MUST** check `io.Reader`/`io.Writer` return values — partial reads/writes are valid behavior, not errors. Use `io.ReadFull` or `io.ReadAll` when a complete read is required.
 
 ## Struct and Interface Design
 
@@ -167,9 +167,9 @@ func ParseConfig(path string) (*Config, error) {
 
 ## Linting and CI
 
-* **MUST** use `golangci-lint` (v2) with at minimum: `govet`, `staticcheck`, `errcheck`, `unused`, `gosimple`.
+* **MUST** use `golangci-lint` (v2) with at minimum: `govet`, `staticcheck` (covers `gosimple` and `unused`), `errcheck`.
 * **MUST** run `go vet ./...` — it catches real bugs.
-* Run `go fix ./...` periodically to adopt modern idioms recommended by the Go team's modernize analyzers.
+* Run `go fix ./...` periodically for registered API migration fixes. Use the `modernize` analyzer via `gopls` or `golangci-lint` for broader style modernization.
 * Enable `gofumpt` for stricter formatting if the project uses it.
 * When adopting linting incrementally, use `--new-from-merge-base=main` in CI to lint only changed lines; use `--new` (`-n`) or `--new-from-rev REV` locally.
 * CI should run: `go build ./...`, `go test -race ./...`, `go vet ./...`, `golangci-lint run --new-from-merge-base=main`, `govulncheck ./...`.
