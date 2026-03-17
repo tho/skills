@@ -1,6 +1,6 @@
 ---
 name: hledger
-description: Create, manage, and analyze hledger plain text accounting data. Use when working with hledger journal files (.journal, .j), CSV import rules (.csv.rules), hledger CLI commands, or when the user asks about plain text accounting, transaction entry, CSV import/categorization, balance reports, income statements, balance sheets, cashflow, account reconciliation, or financial data analysis with hledger.
+description: Use when working with hledger journal files (.journal, .j), CSV import rules (.csv.rules), hledger CLI commands, or when the user asks about plain text accounting, transaction entry, CSV import/categorization, balance reports, income statements, balance sheets, cashflow, account reconciliation, or financial data analysis with hledger.
 ---
 
 # hledger
