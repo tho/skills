@@ -1,13 +1,13 @@
 ---
 name: go-table-driven-tests
-description: Use when writing tests, creating test functions, adding test cases, or when the user mentions "test", "table-driven", "Go tests", or testing in Go codebases.
+description: Use when writing or reviewing Go tests, creating test functions, adding test cases, or when the user mentions "table-driven", "Go tests", "t.Run", "t.Parallel", "wantErr", testify assertions, or table-driven test patterns in Go.
 ---
 
 # Go Table-Driven Tests
 
 ## Core Principles
 
-- **Red/green TDD** - Write tests first, confirm they fail (red), then implement until they pass (green)
+- **Red/green TDD** - Write tests first, confirm they fail (red), then implement until they pass (green). Add the test case, run `go test ./...` to confirm failure, implement the feature, then rerun to confirm the green pass.
 - **One test function, many cases** - Define test cases in a slice and iterate with `t.Run()`
 - **Explicit naming** - Each case has a `name` field that becomes the subtest name
 - **Structured inputs** - Use struct fields for inputs, expected outputs, and configuration
@@ -111,51 +111,9 @@ func TestNew_errorCases(t *testing.T) {
 }
 ```
 
-### 3. Custom Error Validation with `errCheck`
+### 3. Error Validation with `assert.ErrorAssertionFunc` (testify, preferred)
 
-```go
-func TestNew_customErrors(t *testing.T) {
-    tests := []struct {
-        name     string
-        setupEnv func() func()
-        wantErr  error
-        errCheck func(error) bool
-    }{
-        {
-            name: "missing config returns ErrMissingConfig",
-            setupEnv: func() func() { return func() {} },
-            wantErr:  ErrMissingConfig,
-            errCheck: func(err error) bool {
-                return errors.Is(err, ErrMissingConfig)
-            },
-        },
-    }
-
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            cleanup := tt.setupEnv()
-            defer cleanup()
-
-            _, err := New(context.Background())
-
-            if tt.wantErr != nil {
-                if err == nil {
-                    t.Fatalf("expected error %v, got nil", tt.wantErr)
-                }
-                if tt.errCheck != nil && !tt.errCheck(err) {
-                    t.Errorf("error = %v, want %v", err, tt.wantErr)
-                }
-            } else if err != nil {
-                t.Errorf("unexpected error: %v", err)
-            }
-        })
-    }
-}
-```
-
-### 4. Error Checking with `assert.ErrorAssertionFunc` (testify)
-
-When using testify, prefer [`assert.ErrorAssertionFunc`](https://pkg.go.dev/github.com/stretchr/testify/assert#ErrorAssertionFunc) over `func(error) bool` for the error assertion field. Its signature matches testify's own assertion functions, so `assert.NoError` and `assert.Error` drop in as values — no wrapper needed. Custom checks get full testify reporting via `assert.TestingT`.
+When the project uses testify, prefer [`assert.ErrorAssertionFunc`](https://pkg.go.dev/github.com/stretchr/testify/assert#ErrorAssertionFunc) over `func(error) bool` for the error assertion field. Its signature matches testify's own assertion functions, so `assert.NoError` and `assert.Error` drop in as values -- no wrapper needed. Custom checks get full testify reporting via `assert.TestingT`.
 
 ```go
 func TestParse(t *testing.T) {
@@ -181,6 +139,45 @@ func TestParse(t *testing.T) {
 ```
 
 This is more declarative than `wantErr bool` (which can't identify which error) and cleaner than `func(error) bool` (which lacks testify's reporting).
+
+### 4. Custom Error Validation without testify (`errCheck`, stdlib-only fallback)
+
+When testify is not available, use `func(error) bool` for custom error validation. This is less ergonomic than Pattern 3 -- it lacks testify's diff output and requires more boilerplate -- so prefer Pattern 3 whenever testify is already a dependency.
+
+```go
+func TestNew_customErrors(t *testing.T) {
+    tests := []struct {
+        name     string
+        wantErr  error            // non-nil means an error is expected; used in the failure message
+        errCheck func(error) bool // optional custom validation; nil means only check non-nil
+    }{
+        {
+            name:    "missing config returns ErrMissingConfig",
+            wantErr: ErrMissingConfig,
+            errCheck: func(err error) bool {
+                return errors.Is(err, ErrMissingConfig)
+            },
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            _, err := New(context.Background())
+
+            if tt.wantErr != nil {
+                if err == nil {
+                    t.Fatalf("expected error %v, got nil", tt.wantErr)
+                }
+                if tt.errCheck != nil && !tt.errCheck(err) {
+                    t.Errorf("error = %v, want %v", err, tt.wantErr)
+                }
+            } else if err != nil {
+                t.Errorf("unexpected error: %v", err)
+            }
+        })
+    }
+}
+```
 
 ### 5. Environment Setup with `setupEnv`
 
@@ -215,8 +212,12 @@ func TestNew_envVarOverrides(t *testing.T) {
 
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            cleanup := tt.setupEnv()
-            defer cleanup()
+            if tt.setupEnv != nil {
+                cleanup := tt.setupEnv()
+                defer cleanup() // runs when this subtest closure returns
+                // Do not call t.Parallel() in subtests that use setupEnv;
+                // use t.Setenv (Go 1.17+) instead for parallel-safe env overrides.
+            }
 
             _, err := New(context.Background(), tt.options...)
 
@@ -303,7 +304,7 @@ When writing table-driven tests:
 - [ ] Environment setup includes cleanup in `defer`
 - [ ] Integration tests use `skipIfNoCreds(t)` helper
 - [ ] Test helpers use `t.Helper()` for proper line reporting
-- [ ] Test file is `*_test.go` and lives next to the code it tests
+- [ ] Test file is `*_test.go` and lives next to the code it tests (for unit tests; integration tests may reside in a separate package)
 
 ## Best Practices
 
@@ -325,7 +326,7 @@ Always include both actual and expected values in error messages: `t.Errorf("got
 
 ### Maps for Test Cases
 
-Consider using a map instead of a slice for test cases. Map iteration order is non-deterministic, which ensures test cases are truly independent:
+Consider using a map instead of a slice for test cases. Map iteration order is non-deterministic, which enforces that test cases do not rely on execution order. However, this also makes debugging harder when a specific case fails -- there is no stable index to reference. Prefer slice-based tests when order matters for readability or when you expect to diagnose individual failures frequently; prefer map-based tests when order independence is the explicit goal. Note that map iteration also produces non-deterministic output ordering in `go test` logs, which can make CI log comparison or snapshot testing harder.
 
 ```go
 tests := map[string]struct {
@@ -349,7 +350,7 @@ for name, tt := range tests {
 
 ### Parallel Testing
 
-Add `t.Parallel()` calls to run test cases in parallel. The loop variable is automatically captured per iteration:
+Add `t.Parallel()` calls to run test cases in parallel. The loop variable is automatically captured per iteration. **Do not combine `t.Parallel()` with `setupEnv` patterns that mutate global state** (e.g., `os.Setenv`): parallel subtests share the same process environment, causing races between setup and cleanup across concurrent cases. For env-dependent tests, run them sequentially or use `t.Setenv` (Go 1.17+), which automatically restores the value and marks the test as non-parallelizable.
 
 ```go
 func TestFunction(t *testing.T) {
@@ -373,7 +374,7 @@ func TestFunction(t *testing.T) {
 
 Consider `github.com/stretchr/testify` (`assert`/`require`) when it would simplify assertions — particularly for deep equality checks, nil checks, and producing readable diffs on failure. Avoid it for trivial comparisons where a one-line `if` + `t.Errorf` is just as clear. If the project already uses testify, prefer it for consistency.
 
-When using testify, prefer `assert.ErrorAssertionFunc` for the error assertion field in table tests — see pattern 4 above.
+When using testify, prefer `assert.ErrorAssertionFunc` for the error assertion field in table tests -- see pattern 3 above.
 
 ## References
 
