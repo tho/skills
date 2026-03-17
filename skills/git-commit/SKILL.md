@@ -1,6 +1,10 @@
 ---
 name: git-commit
-description: Use when user asks to commit changes, create a commit, or mentions "/commit".
+description: >
+  This skill should be used when the user wants to commit changes, stage files and commit,
+  create a git commit message, or asks what conventional commit type to use. Also applies
+  when the user says "save my changes", "write a commit message", "prepare a commit",
+  "stage and commit", or invokes "/commit".
 ---
 
 # Git Commit with Conventional Commits
@@ -44,18 +48,18 @@ Run `git status --short` and `git diff --staged` in parallel.
 - If staged changes exist → proceed to analyze them
 - If nothing staged → check `git diff` for unstaged changes
 
-### Step 2: Determine Commit Type
+### Step 2: Determine Commit Type and Scope
 
-Analyze the diff and map changes to the appropriate type from the [Commit Types](#commit-types) table above.
+Analyze the diff in a single pass to determine both the commit type and scope simultaneously:
 
-### Step 3: Identify Scope
+- Map changes to the appropriate type from the [Commit Types](#commit-types) table above
+- Extract scope from file paths or affected modules:
+  - File in `src/auth/` → scope: `auth`
+  - Changes to `api/users.ts` → scope: `api` or `users`
+  - Multiple unrelated changes → omit scope
+- If the diff spans multiple unrelated concerns, stop and split: stage and commit each concern separately before proceeding
 
-Extract scope from file paths or affected modules:
-- File in `src/auth/` → scope: `auth`
-- Changes to `api/users.ts` → scope: `api` or `users`
-- Multiple unrelated changes → omit scope
-
-### Step 4: Generate Description
+### Step 3: Generate Description
 
 Create a concise description (imperative mood, present tense, <72 chars):
 - ✓ "add login endpoint"
@@ -63,14 +67,14 @@ Create a concise description (imperative mood, present tense, <72 chars):
 - ✗ "added login endpoint"
 - ✗ "fixes bug"
 
-### Step 5: Stage Files (if needed)
+### Step 4: Stage Files (if needed)
 
-Stage specific files by path or glob pattern.
+If Step 1 found nothing staged, stage the relevant files now (before committing). Stage specific files by path or glob pattern.
 
 - **NEVER** use `git add -A` or `git add .`
 - **NEVER** commit secrets (.env, credentials.json, API keys, private keys)
 
-### Step 6: Execute Commit
+### Step 5: Execute Commit
 
 ```bash
 # Single line commit
@@ -95,7 +99,8 @@ EOF
 - **Lowercase description** - Don't capitalize first word unless it's a proper noun
 - **No period at end** - Description should not end with punctuation
 - **Keep description under 72 characters** - Be concise
-- **No dashes for punctuation** - Never use dashes for punctuation
+- **No dashes for punctuation** - Never use dashes for punctuation (project convention, not part of the Conventional Commits spec)
+- **No unicode symbols or emojis** - Commit messages are plain text only
 - **Reference issues in footer** - Use `Closes #123` or `Refs #456`
 
 ## Git Safety Protocol
