@@ -1,11 +1,11 @@
 ---
 name: bash
-description: Use when writing, reviewing, or modifying shell scripts (.sh files, bash scripts, POSIX sh scripts), or when the user asks about shell scripting, bash idioms, script safety, quoting, error handling, or portability.
+description: This skill should be used when writing, reviewing, or modifying shell scripts (.sh files, bash scripts, POSIX sh scripts), or when the user asks about shell scripting, bash idioms, script safety, quoting, error handling, portability, argument parsing, iterating files, or debugging a bash script.
 ---
 
 # Shell Script Quality
 
-**Clear, boring scripts beat clever ones. Prefer explicit over implicit, simple over terse.**
+Clear, boring scripts beat clever ones. Prefer explicit over implicit, simple over terse.
 
 ## Core Principles
 
@@ -23,7 +23,7 @@ Write correct, robust scripts by:
 
 Shell is the right tool for glue code, automation, build scripts, and small utilities. It is the wrong tool for complex business logic, data processing, or anything that needs structured error handling, data types, or testability beyond basic integration tests.
 
-If a script grows past ~200 lines, needs to parse structured data (JSON, YAML, CSV), requires non-trivial error recovery, or would benefit from real data structures — rewrite it in Go, Python, or another general-purpose language. Do not fight the shell to do things it was not designed to do.
+If a script grows to roughly 200 lines or more, needs to parse structured data (JSON, YAML, CSV), requires non-trivial error recovery, or would benefit from real data structures — rewrite it in Go, Python, or another general-purpose language. Do not fight the shell to do things it was not designed to do.
 
 ## Target Shell
 
@@ -290,13 +290,49 @@ read -r month day year <<< "$(date '+%m %d %Y')"
 - Include a header comment for non-trivial scripts: purpose, usage, required environment variables, and dependencies.
 - Document functions with purpose, arguments, and return value when the signature alone is not self-explanatory.
 
+Example header comment:
+
+```sh
+#!/usr/bin/env bash
+# deploy.sh: build and deploy the application to a target environment.
+#
+# Usage: deploy.sh <environment>
+#   environment  One of: staging, production
+#
+# Requires: AWS_PROFILE, DEPLOY_BUCKET
+# Dependencies: aws-cli, jq
+set -euo pipefail
+```
+
 ## Testing
 
 Most shell scripts are short enough that ShellCheck and manual testing suffice. For scripts maintained long-term or containing reusable library functions, use [bats-core](https://github.com/bats-core/bats-core).
 
+```bash
+# test/deploy.bats
+setup() {
+  load 'test_helper/bats-support/load'
+  load 'test_helper/bats-assert/load'
+}
+
+@test "fails with no arguments" {
+  run ./deploy.sh
+  assert_failure
+  assert_output --partial "Usage:"
+}
+
+@test "fails on unknown environment" {
+  run ./deploy.sh unknown
+  assert_failure
+  assert_output --partial "unknown environment"  # must match the script's actual error text
+}
+```
+
+Run with `bats test/`. Test argument validation and error paths first; integration tests that invoke real side effects require a configured environment and belong in a separate suite.
+
 ## Linting and Static Analysis
 
-- **MUST** run [ShellCheck](https://www.shellcheck.net/) on all scripts: `shellcheck -S warning -x <script>`.
+- **MUST** run [ShellCheck](https://www.shellcheck.net/) on all scripts: `shellcheck -S warning -x <script>`. Verify availability first with `command -v shellcheck`; if absent, inform the user to install it and skip the check rather than erroring out.
 - Use `shfmt` for formatting: `shfmt -i 2 -ci -w <script>`.
 - **NEVER** suppress ShellCheck warnings without a documented reason inline:
 
