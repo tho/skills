@@ -85,11 +85,11 @@ func ParseConfig(path string) (*Config, error) {
 
 * **MUST** check every error. **NEVER** use `_` to discard errors unless the function's docs explicitly say it cannot fail.
 * **NEVER** use `panic` for expected error conditions. `panic` is for programmer bugs and unrecoverable states only.
-* **MUST** wrap errors with context using `fmt.Errorf("doing X: %w", err)`.
+* **MUST** wrap errors with context using `fmt.Errorf("doing X: %w", err)`. At trust or subsystem boundaries (e.g., before a third-party library error crosses into your public API), replace the error entirely with a sentinel or domain-specific error rather than wrapping with `%w` — this prevents callers from using `errors.Is`/`errors.As` to detect internal implementation details (e.g., which database driver or library you use). Note: `%v` prevents programmatic unwrapping but still exposes the original error string, so it is not sufficient when the error message itself is sensitive.
 * **MUST** use `errors.Is` and `errors.As` (or `errors.AsType[T](err)` on Go 1.26+) for error inspection — never compare error strings.
 * Return errors; don't log-and-return (pick one). Let the caller decide what to do.
 * Use sentinel errors (`var ErrNotFound = errors.New("not found")`) for errors callers need to check.
-* **NEVER** expose internal error details to end users. Translate errors at API boundaries — log the full error server-side, return an opaque message to the client. Use a custom error type that separates internal details from public-safe messages if needed.
+* **NEVER** expose internal error details to end users. Translate errors at API boundaries: log the full error server-side, return an opaque message to the client. Use a custom error type that separates internal details from public-safe messages if needed. Treat unrecognized errors as sensitive by default — a catch-all should return a generic response (e.g., HTTP 500 "an internal error occurred") rather than propagating the raw error.
 
 ## Function Design
 
@@ -127,7 +127,7 @@ func ParseConfig(path string) (*Config, error) {
 * **NEVER** store secrets, API keys, or passwords in code. Use environment variables or a secret manager.
   * Ensure `.env` files are declared in `.gitignore`.
   * **NEVER** print or log URLs containing API keys.
-* **NEVER** log sensitive information (passwords, tokens, PII).
+* **NEVER** log sensitive information (passwords, tokens, PII). Never log structs, request bodies, or HTTP headers (e.g., `Authorization`, `Cookie`) directly without verifying they contain no sensitive fields — pass only explicit, known-safe values to log calls.
 * **MUST** use `crypto/rand` for security-sensitive random values — never `math/rand`.
 * **MUST** validate and sanitize all external input.
 * **MUST** use parameterized SQL queries — never string interpolation.
