@@ -1,18 +1,4 @@
----
-name: go-table-driven-tests
-description: Use when writing or reviewing Go tests, creating test functions, adding test cases, or when the user mentions "table-driven", "Go tests", "t.Run", "t.Parallel", "wantErr", testify assertions, or table-driven test patterns in Go.
----
-
 # Go Table-Driven Tests
-
-## Core Principles
-
-- **Red/green TDD** - Write tests first, confirm they fail (red), then implement until they pass (green). Add the test case, run `go test ./...` to confirm failure, implement the feature, then rerun to confirm the green pass.
-- **One test function, many cases** - Define test cases in a slice and iterate with `t.Run()`
-- **Explicit naming** - Each case has a `name` field that becomes the subtest name
-- **Structured inputs** - Use struct fields for inputs, expected outputs, and configuration
-- **Helper functions** - Use `t.Helper()` in test helpers for proper line reporting
-- **Environment guards** - Skip integration tests when credentials are unavailable
 
 ## Table Structure Pattern
 
@@ -310,7 +296,7 @@ When writing table-driven tests:
 
 ### Fatalf vs Errorf
 
-Use `t.Fatalf` to stop a subtest immediately on a precondition failure (e.g., unexpected error). Use `t.Errorf` when the test can continue — this reveals whether failures are systematic or isolated to specific cases.
+Use `t.Fatalf` to stop a subtest immediately on a precondition failure (e.g., unexpected error). Use `t.Errorf` when the test can continue -- this reveals whether failures are systematic or isolated to specific cases.
 
 ```go
 got, err := ParseConfig(tt.input)
@@ -335,7 +321,7 @@ tests := map[string]struct {
 }{
     "empty string":       {input: "", want: ""},
     "single character":   {input: "x", want: "x"},
-    "multi-byte glyph":   {input: "🎉", want: "🎉"},
+    "multi-byte glyph":   {input: "€", want: "€"},
 }
 
 for name, tt := range tests {
@@ -372,7 +358,7 @@ func TestFunction(t *testing.T) {
 
 ### Testify
 
-Consider `github.com/stretchr/testify` (`assert`/`require`) when it would simplify assertions — particularly for deep equality checks, nil checks, and producing readable diffs on failure. Avoid it for trivial comparisons where a one-line `if` + `t.Errorf` is just as clear. If the project already uses testify, prefer it for consistency.
+Consider `github.com/stretchr/testify` (`assert`/`require`) when it would simplify assertions -- particularly for deep equality checks, nil checks, and producing readable diffs on failure. Avoid it for trivial comparisons where a one-line `if` + `t.Errorf` is just as clear. If the project already uses testify, prefer it for consistency.
 
 When using testify, prefer `assert.ErrorAssertionFunc` for the error assertion field in table tests -- see pattern 3 above.
 
@@ -380,4 +366,4 @@ When using testify, prefer `assert.ErrorAssertionFunc` for the error assertion f
 
 - [Go Wiki: TableDrivenTests](https://go.dev/wiki/TableDrivenTests) - Official Go community best practices for table-driven testing
 - [Go Testing Package](https://pkg.go.dev/testing/) - Standard library testing documentation
-- [Prefer Table Driven Tests](https://dave.cheney.net/2019/05/07/prefer-table-driven-tests) - Dave Cheney's guide on when and why to use table-driven tests over traditional test structures
+- [Prefer Table Driven Tests](https://dave.cheney.net/2019/05/07/prefer-table-driven-tests) - Dave Cheney's guide on when and why to use table-driven tests

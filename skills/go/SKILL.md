@@ -1,6 +1,6 @@
 ---
 name: go
-description: This skill should be used when writing, reviewing, or modifying Go code, setting up Go projects, or when the user asks questions like "how do I handle errors in Go", "write me a Go HTTP server", "help me with Go concurrency", or "review my Go code".
+description: This skill should be used when writing, reviewing, or modifying Go code, setting up Go projects, or when the user asks questions like "how do I handle errors in Go", "write me a Go HTTP server", "help me with Go concurrency", "review my Go code", "add table-driven tests", or "write tests for this function".
 ---
 
 # Go Code Quality
@@ -121,7 +121,7 @@ func ParseConfig(path string) (*Config, error) {
 
 ## Testing
 
-**MUST** use table-driven tests for functions with multiple input/output cases. For table-driven test patterns, conventions, and examples, load the `go-table-driven-tests` skill -- it covers the specifics of structuring test tables, subtests, and `t.Run` loops. The bullets below cover general testing practices that apply regardless.
+**MUST** use table-driven tests for functions with multiple input/output cases. For table-driven test patterns, field conventions, error checking, parallel testing, and a checklist, see **`references/table-driven-tests.md`**.
 
 * **MUST** use red/green TDD: write tests first, confirm they fail (red), then implement until they pass (green).
 * Follow the Arrange-Act-Assert pattern.
