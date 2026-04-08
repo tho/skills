@@ -9,14 +9,14 @@ Clear, boring code beats clever code.
 
 ## Core Principles
 
-All code you write MUST meet the following quality criteria:
+All code MUST meet the following quality criteria:
 
-* following Go conventions: simplicity, readability, minimal abstraction
-* no extra code beyond what is absolutely necessary to solve the problem (i.e. no technical debt)
+* Follow Go conventions: simplicity, readability, minimal abstraction.
+* Write no extra code beyond what is absolutely necessary to solve the problem (i.e. no technical debt).
   * If a well-maintained stdlib package or small dependency solves the problem well, use it instead of reimplementing. Prefer the standard library over third-party packages when the stdlib solution is reasonable.
-* maximizing algorithmic big-O efficiency for memory and runtime
-* minimizing heap allocations; prefer stack allocation and value types where practical
-* using concurrency (goroutines, channels, `sync.WaitGroup`, `errgroup`) where appropriate — not everywhere
+* Maximize algorithmic big-O efficiency for memory and runtime.
+* Minimize heap allocations; prefer stack allocation and value types where practical.
+* Use concurrency (goroutines, channels, `sync.WaitGroup`, `errgroup`) where appropriate -- not everywhere.
 
 ## Project Setup
 

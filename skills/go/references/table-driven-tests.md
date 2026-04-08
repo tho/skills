@@ -10,7 +10,7 @@ func TestFunctionName(t *testing.T) {
         want        Type                // expected output
         wantErr     error               // expected error (nil for success)
         errCheck    func(error) bool    // optional: custom error validation
-        setupEnv    func() func()       // optional: env setup, returns cleanup
+        setupEnv    func() func()       // optional: env setup, returns cleanup; prefer t.Setenv in new code
     }{
         {
             name: "descriptive case name",
@@ -36,7 +36,7 @@ func TestFunctionName(t *testing.T) {
 | `input`/`args` | Varies   | Input values for the function under test             |
 | `want`/`want*` | Varies   | Expected output values (e.g., `wantErr`, `wantResult`) |
 | `errCheck`     | No       | Custom error validation function                     |
-| `setupEnv`     | No       | Environment setup function returning cleanup         |
+| `setupEnv`     | No       | Environment setup function returning cleanup (prefer `t.Setenv` in new code) |
 
 ## Naming Conventions
 
@@ -166,6 +166,8 @@ func TestNew_customErrors(t *testing.T) {
 ```
 
 ### 5. Environment Setup with `setupEnv`
+
+Prefer `t.Setenv` (Go 1.17+) for environment overrides in new code -- it restores the original value automatically and marks the test as non-parallelizable. The pattern below illustrates the manual cleanup approach for cases where `t.Setenv` is not available (e.g., older Go or third-party env packages).
 
 ```go
 func TestNew_envVarOverrides(t *testing.T) {
