@@ -1,6 +1,6 @@
 ---
 name: go
-description: Use when writing, reviewing, or modifying Go code (.go files), setting up Go projects, or when the user asks about Go idioms, patterns, error handling, concurrency, testing, benchmarking, security, linting, or project structure.
+description: This skill should be used when writing, reviewing, or modifying Go code (.go files), setting up Go projects, or when the user asks about Go idioms, patterns, error handling, concurrency, testing, benchmarking, security, linting, or project structure.
 ---
 
 # Go Code Quality
@@ -48,21 +48,11 @@ All code you write MUST meet the following quality criteria:
 
 ## Modern Go Idioms
 
-Prefer modern language features and stdlib additions over older patterns. AI agents have a known tendency to produce outdated Go due to training data lag. The `modernize` analyzer (in `gopls` and `golangci-lint`) and `go fix ./...` (for registered API migration fixes) can automatically modernize code, but prefer writing modern code from the start.
+Prefer modern language features and stdlib additions over older patterns. AI agents have a known tendency to produce outdated Go due to training data lag. Use the `modernize` analyzer (in `gopls` and `golangci-lint`) and `go fix ./...` to automatically modernize existing code.
 
-* Use `min(a, b)` and `max(a, b)` builtins (Go 1.21+) instead of if-else blocks.
-* Use `for i := range n` (Go 1.22+) instead of `for i := 0; i < n; i++`.
-* Use `slices.Contains(s, v)` instead of manual loops.
-* Use `slices` and `maps` packages (Go 1.21+) for common slice/map operations instead of hand-rolled helpers.
-* Use `cmp.Or(a, b, c)` (Go 1.22+) instead of chains of `if x == "" { x = fallback }`.
-* Use `errors.AsType[T](err)` (Go 1.26+) instead of `var target T; errors.As(err, &target)`.
-* Use `new(expr)` (Go 1.26+) to initialize a pointer to a non-composite value instead of the two-line `x := val; return &x` pattern (e.g., `new(42)` for `*int`, `new(time.Now())` for `*time.Time`). For struct types, `&T{field: val}` composite literals remain idiomatic.
-* Use `slog.NewMultiHandler` (Go 1.26+) when fanning out to multiple log handlers.
-* Use `strings.Cut` instead of `strings.Index` + manual slicing.
-* Use `strings.Builder` for string concatenation in loops instead of repeated `+` or `fmt.Sprintf`.
-* Use `sync.WaitGroup.Go(fn)` (Go 1.25+) instead of `wg.Add(1)` + `go func() { defer wg.Done(); ... }()`.
+When working on an existing codebase, match the Go version declared in `go.mod` -- do not use features from a newer Go than what the project targets.
 
-When working on an existing codebase, match the Go version declared in `go.mod` — do not use features from a newer Go than what the project targets.
+For a full table of old-vs-modern substitutions (Go 1.21 through 1.26+), see **`references/modern-go-idioms.md`**.
 
 ## Documentation
 
@@ -176,11 +166,4 @@ func ParseConfig(path string) (*Config, error) {
 
 ## Before Committing
 
-* All tests pass (`go test -race ./...`)
-* `go vet ./...` is clean
-* `golangci-lint run --new` is clean (at minimum; `--new-from-merge-base=main` in CI)
-* `govulncheck ./...` reports no issues
-* All exported symbols have doc comments
-* No commented-out code or debug prints
-* No hardcoded credentials
-* `go mod tidy` has been run
+See **`references/checklist.md`** for the full pre-commit checklist.
