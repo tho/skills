@@ -160,4 +160,11 @@ func ParseConfig(path string) (*Config, error) {
 
 ## Before Committing
 
-Before every commit, follow the checklist in **`references/checklist.md`**.
+- [ ] `go mod tidy` has been run
+- [ ] `go vet ./...` is clean
+- [ ] All exported symbols have doc comments
+- [ ] No commented-out code or debug prints
+- [ ] No hardcoded credentials
+- [ ] `golangci-lint run --new` is clean (at minimum; `--new-from-merge-base=main` in CI)
+- [ ] All tests pass (`go test -race ./...`)
+- [ ] `govulncheck ./...` reports no issues
