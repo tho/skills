@@ -1,6 +1,6 @@
 ---
 name: bash
-description: This skill should be used when writing, reviewing, or modifying shell scripts (.sh files, bash scripts, POSIX sh scripts), or when the user asks to "write a bash script", "fix my shell script", "make this script safe", "handle errors in bash", "parse arguments in bash", or asks about shell scripting idioms, quoting, portability, argument parsing, iterating files, or debugging a bash script.
+description: This skill should be used when writing, reviewing, or modifying shell scripts (.sh files, bash scripts, POSIX sh scripts), or when the user asks to "write a bash script", "fix my shell script", "make this script safe", "handle errors in bash", "parse arguments in bash", "run shellcheck on my script", or "debug my shell script", or asks about shell scripting idioms, quoting, portability, argument parsing, file iteration, or arrays.
 ---
 
 # Shell Script Quality
@@ -55,8 +55,11 @@ If the script does not rely on globbing, also add `set -f` to prevent accidental
 
 **`set -o pipefail` caveats:**
 
-- Early pipeline stages exiting non-zero cause the whole pipeline to fail. This can produce false negatives in `if` conditions with `grep -q`.
-- Only enable for pipelines where every stage is expected to consume all its input.
+- Always enable `pipefail`. When a pipeline stage exits early intentionally (e.g., `grep -q`, `head -1`), handle the exit explicitly rather than disabling `pipefail` globally:
+
+```sh
+if grep -q "pattern" file || true; then ...  # intentional early exit — documented
+```
 
 **`set -u` caveats:**
 
@@ -144,7 +147,21 @@ The same applies to `export foo=$(cmd)` and `readonly foo=$(cmd)`.
 ## Input and Arguments
 
 - **MUST** validate required arguments early with a `usage()` function.
-- Use `getopts` for option parsing. **NEVER** use `getopt` (the external command) — platform-dependent.
+- Use `getopts` for option parsing. **NEVER** use `getopt` (the external command) — platform-dependent. Minimal pattern:
+
+```sh
+usage() { echo "Usage: $0 [-v] [-o outfile] arg" >&2; exit 1; }
+verbose=0; outfile=""
+while getopts ":vo:" opt; do
+  case $opt in
+    v) verbose=1 ;;
+    o) outfile="$OPTARG" ;;
+    :) echo "error: -$OPTARG requires an argument" >&2; usage ;;
+    \?) echo "error: unknown option -$OPTARG" >&2; usage ;;
+  esac
+done
+shift $((OPTIND - 1))
+```
 - **NEVER** pass unvalidated input to `eval`, arithmetic contexts, or `find -exec sh -c 'echo {}'`. Pass as positional arguments: `find . -exec sh -c 'echo "$1"' _ {} \;`.
 
 ## Error Handling
@@ -297,17 +314,12 @@ See **`references/testing.md`** for a bats-core setup example.
 | `sudo cmd > /file` | Redirect runs as original user | `sudo sh -c 'cmd > /file'` |
 | `myprogram 2>&-` | Closing stderr crashes programs | `myprogram 2>/dev/null` |
 
-## Additional Resources
-
-- **`references/file-iteration.md`** -- Safe iteration patterns: globs, find, while-read, readarray, pipeline scope
-- **`references/testing.md`** -- bats-core setup and example tests
-
 ## Before Committing
 
-- `shellcheck` is clean
-- `shfmt -d` reports no differences
-- All variable expansions quoted
-- All `cd` calls check for failure
-- No hardcoded credentials or secrets
-- No debug `echo` or `set -x` left in
-- Temporary files cleaned up via `trap`
+- [ ] All variable expansions quoted
+- [ ] All `cd` calls check for failure
+- [ ] Temporary files cleaned up via `trap`
+- [ ] No hardcoded credentials or secrets
+- [ ] No debug `echo` or `set -x` left in
+- [ ] `shellcheck` is clean
+- [ ] `shfmt -d` reports no differences
