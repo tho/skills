@@ -1,6 +1,6 @@
 ---
 name: bash
-description: This skill should be used when writing, reviewing, or modifying shell scripts (.sh files, bash scripts, POSIX sh scripts), or when the user asks about shell scripting, bash idioms, script safety, quoting, error handling, portability, argument parsing, iterating files, or debugging a bash script.
+description: This skill should be used when writing, reviewing, or modifying shell scripts (.sh files, bash scripts, POSIX sh scripts), or when the user asks to "write a bash script", "fix my shell script", "make this script safe", "handle errors in bash", "parse arguments in bash", or asks about shell scripting idioms, quoting, portability, argument parsing, iterating files, or debugging a bash script.
 ---
 
 # Shell Script Quality
@@ -168,55 +168,11 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 ## Reading Input and Iterating Files
 
-### NEVER iterate with `for f in $(ls ...)` or `for f in $(find ...)`
+**NEVER** iterate with `for f in $(ls ...)` or `for f in $(find ...)` -- breaks on filenames with spaces or glob characters. **NEVER** parse `ls` output.
 
-Breaks on filenames with spaces, newlines, or glob characters. No fix — the approach is wrong. **NEVER** parse `ls` output for any purpose — it is designed for human reading.
+Use globs (`for f in ./*.mp3`), `find -exec`, or `while IFS= read -r` with process substitution. **NEVER** use `arr=( $(cmd) )` -- use `readarray -t arr < <(cmd)`.
 
-```sh
-# Right — use globs
-for f in ./*.mp3; do
-  [ -e "$f" ] || continue  # guard against no matches (POSIX sh)
-  some_command "$f"
-done
-
-# Right — find with -exec
-find . -type f -name '*.mp3' -exec some_command {} +
-
-# Right — find with while read (bash)
-while IFS= LC_ALL=C read -r -d '' f; do
-  some_command "$f"
-done < <(find . -type f -name '*.mp3' -print0)
-```
-
-In bash, `shopt -s nullglob` suppresses unmatched globs instead of expanding to the literal pattern.
-
-### Reading lines
-
-**NEVER** use `for line in $(cat file)`. Use `while read`:
-
-```sh
-while IFS= read -r line; do
-  printf '%s\n' "$line"
-done < file
-```
-
-`IFS=` preserves whitespace; `-r` prevents backslash interpretation. If a command inside the loop reads stdin (e.g., `ssh`), use a dedicated fd: `while IFS= read -r line <&3; do ...; done 3< file`.
-
-### Populating arrays safely
-
-**NEVER** use `arr=( $(cmd) )`. Use `readarray -t arr < <(cmd)` (bash 4+) or `read -ra arr < <(cmd)`. For bash 3.x compatibility: `IFS=$'\n' read -r -d '' -a arr < <(cmd && printf '\0')`.
-
-### Pipeline variable scope
-
-Variables set in a pipeline subshell are lost. Use process substitution:
-
-```sh
-# Wrong — count is lost
-grep foo file | while read -r line; do (( count++ )); done
-
-# Right
-while IFS= read -r line; do (( count++ )); done < <(grep foo file)
-```
+See **`references/file-iteration.md`** for complete patterns including safe array population, `while read` with dedicated fds, and pipeline variable scope.
 
 ## Output
 
@@ -306,29 +262,9 @@ set -euo pipefail
 
 ## Testing
 
-Most shell scripts are short enough that ShellCheck and manual testing suffice. For scripts maintained long-term or containing reusable library functions, use [bats-core](https://github.com/bats-core/bats-core).
+Most shell scripts are short enough that ShellCheck and manual testing suffice. For scripts maintained long-term or containing reusable library functions, use [bats-core](https://github.com/bats-core/bats-core). Test argument validation and error paths first; integration tests belong in a separate suite.
 
-```bash
-# test/deploy.bats
-setup() {
-  load 'test_helper/bats-support/load'
-  load 'test_helper/bats-assert/load'
-}
-
-@test "fails with no arguments" {
-  run ./deploy.sh
-  assert_failure
-  assert_output --partial "Usage:"
-}
-
-@test "fails on unknown environment" {
-  run ./deploy.sh unknown
-  assert_failure
-  assert_output --partial "unknown environment"  # must match the script's actual error text
-}
-```
-
-Run with `bats test/`. Test argument validation and error paths first; integration tests that invoke real side effects require a configured environment and belong in a separate suite.
+See **`references/testing.md`** for a bats-core setup example.
 
 ## Linting and Static Analysis
 
@@ -360,6 +296,11 @@ Run with `bats test/`. Test argument validation and error paths first; integrati
 | `find . -exec sh -c 'echo {}'` | Code injection via filename | `find . -exec sh -c 'echo "$1"' _ {} \;` |
 | `sudo cmd > /file` | Redirect runs as original user | `sudo sh -c 'cmd > /file'` |
 | `myprogram 2>&-` | Closing stderr crashes programs | `myprogram 2>/dev/null` |
+
+## Additional Resources
+
+- **`references/file-iteration.md`** -- Safe iteration patterns: globs, find, while-read, readarray, pipeline scope
+- **`references/testing.md`** -- bats-core setup and example tests
 
 ## Before Committing
 
