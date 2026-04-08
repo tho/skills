@@ -1,11 +1,11 @@
 ---
 name: go
-description: This skill should be used when writing, reviewing, or modifying Go code (.go files), setting up Go projects, or when the user asks about Go idioms, patterns, error handling, concurrency, testing, benchmarking, security, linting, or project structure.
+description: This skill should be used when writing, reviewing, or modifying Go code, setting up Go projects, or when the user asks questions like "how do I handle errors in Go", "write me a Go HTTP server", "help me with Go concurrency", or "review my Go code".
 ---
 
 # Go Code Quality
 
-Clear, boring code beats clever code. This is Go's core value and your core directive.
+Clear, boring code beats clever code.
 
 ## Core Principles
 
@@ -28,9 +28,6 @@ All code you write MUST meet the following quality criteria:
 * Use `internal/` to prevent other modules from importing your implementation details.
 * Avoid `pkg/` for new packages — it is not a Go convention despite its prevalence.
 * **MUST** avoid dot imports (`. "pkg"`).
-
-## Preferred Tools and Libraries
-
 * Use `slog` (stdlib `log/slog`) for structured logging. Do not use `fmt.Println` for operational logs.
 * Use `errors.New` and `fmt.Errorf` with `%w` for error wrapping. Do not use `github.com/pkg/errors` (deprecated).
 * Prefer `net/http` and `http.ServeMux` (Go 1.22+ enhanced routing) for new HTTP server code.
@@ -48,11 +45,7 @@ All code you write MUST meet the following quality criteria:
 
 ## Modern Go Idioms
 
-Prefer modern language features and stdlib additions over older patterns. AI agents have a known tendency to produce outdated Go due to training data lag. Use the `modernize` analyzer (in `gopls` and `golangci-lint`) and `go fix ./...` to automatically modernize existing code.
-
-When working on an existing codebase, match the Go version declared in `go.mod` -- do not use features from a newer Go than what the project targets.
-
-For a full table of old-vs-modern substitutions (Go 1.21 through 1.26+), see **`references/modern-go-idioms.md`**.
+For a full table of old-vs-modern substitutions (Go 1.21 through 1.26+) and guidance on using the `modernize` analyzer, see **`references/modern-go-idioms.md`**.
 
 ## Documentation
 
@@ -87,7 +80,8 @@ func ParseConfig(path string) (*Config, error) {
 * Accept interfaces, return structs. Returning an interface is acceptable when the caller genuinely should not depend on the concrete type (e.g., returning an `io.Reader`).
 * If a function takes more than 5 parameters, group them into an options struct.
 * For constructors or APIs with many optional settings and sensible defaults, prefer the functional options pattern (`func WithTimeout(d time.Duration) Option`). This keeps the call site readable (`New(addr, WithTimeout(5*time.Second), WithLogger(log))`), makes zero-value defaults explicit, and allows adding options without breaking existing callers.
-* `context.Context` is always the first parameter when present. **NEVER** store `context.Context` in a struct field.
+* `context.Context` is always the first parameter when present.
+* **NEVER** store `context.Context` in a struct field.
 * Prefer returning `(T, error)` over output parameters.
 * **MUST** use `defer` for resource cleanup (`file.Close()`, `mu.Unlock()`, rows, response bodies, etc.). A resource acquired in a function should have its cleanup deferred immediately after the error check.
 * **MUST** check `io.Reader`/`io.Writer` return values — partial reads/writes are valid behavior, not errors. Use `io.ReadFull` or `io.ReadAll` when a complete read is required.
@@ -127,7 +121,7 @@ func ParseConfig(path string) (*Config, error) {
 
 ## Testing
 
-**MUST** use table-driven tests for functions with multiple input/output cases. For table-driven test patterns and conventions, use the `go-table-driven-tests` skill.
+**MUST** use table-driven tests for functions with multiple input/output cases. For table-driven test patterns, conventions, and examples, load the `go-table-driven-tests` skill -- it covers the specifics of structuring test tables, subtests, and `t.Run` loops. The bullets below cover general testing practices that apply regardless.
 
 * **MUST** use red/green TDD: write tests first, confirm they fail (red), then implement until they pass (green).
 * Follow the Arrange-Act-Assert pattern.
@@ -166,4 +160,4 @@ func ParseConfig(path string) (*Config, error) {
 
 ## Before Committing
 
-See **`references/checklist.md`** for the full pre-commit checklist.
+Before every commit, follow the checklist in **`references/checklist.md`**.
