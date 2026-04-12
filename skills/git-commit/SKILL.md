@@ -41,9 +41,18 @@ description: >
 
 Follow these steps to create a commit:
 
+### Step 0: Parse Arguments
+
+Infer from the prompt whether the user provided specific file paths/globs and/or additional instructions.
+
+- **File paths or globs** → limit staging and commit scope to those files only, unless the user explicitly asks otherwise.
+- **Freeform instructions** → let them influence scope, summary, and body.
+- **Both** → honour both.
+- **Ambiguous extra files** → ask the user for clarification before committing.
+
 ### Step 1: Assess Current State
 
-Run `git status --short` and `git diff --staged` in parallel.
+Run `git status --short` and `git diff --staged` in parallel (limit to argument-specified files if provided).
 
 - If staged changes exist → proceed to analyze them
 - If nothing staged → check `git diff` for unstaged changes
@@ -57,6 +66,7 @@ Analyze the diff in a single pass to determine both the commit type and scope si
   - File in `src/auth/` → scope: `auth`
   - Changes to `api/users.ts` → scope: `api` or `users`
   - Multiple unrelated changes → omit scope
+- Optionally run `git log -n 50 --pretty=format:%s` to see the scopes and patterns the project already uses
 - If the diff spans multiple unrelated concerns, stop and split: stage and commit each concern separately before proceeding
 
 ### Step 3: Generate Description
