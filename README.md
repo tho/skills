@@ -11,5 +11,5 @@ npx skills add https://github.com/tho/skills
 Or install a specific skill:
 
 ```
-npx skills add https://github.com/tho/skills --skill hello-world
+npx skills add https://github.com/tho/skills --skill <skill>
 ```
